@@ -49,6 +49,16 @@ def handleRequest():
     return request_service.userRequests()
 
 
+@api.route('/get-all-requests', methods=['GET'])
+def handleGetRequests():
+    return request_service.getAllRequest()
+
+
+@api.route('/update-request', methods=['PUT'])
+def handleUpdateRequests():
+    return request_service.updateStatus()
+
+
 # Flood prone area API
 @api.route('/get-flood-prone-areas', methods=['GET'])
 def handleFloodProne():

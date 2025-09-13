@@ -40,3 +40,75 @@ def userRequests():
         return jsonify({'error': 'Data value error'}), 400
     except Exception as e:
         return jsonify({'error': 'Server error', 'details': str(e)}), 500
+
+
+def getAllRequest():
+    try:
+        query = "SELECT * FROM flood_risk_solution.user_requests"
+
+        cursor = mysql.connection.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+
+        if results is None:
+            return jsonify({'requests': [], 'total': 0}), 200
+
+        # Get column names
+        columns = [desc[0] for desc in cursor.description]
+        cursor.close()
+
+        # Convert results to list of dictionaries
+        requests = []
+        for row in results:
+            request_dict = dict(zip(columns, row))
+            requests.append(request_dict)
+
+        return jsonify({'requests': requests, 'total': len(requests)}), 200
+
+    except Exception as e:
+        return jsonify({'error': 'Server error', 'details': str(e)}), 500
+
+
+def updateStatus():
+    try:
+        data = request.get_json()
+
+        print(data)
+
+        if data is None:
+            return jsonify({'error': 'Invalid or missing JSON body'}), 400
+
+        # Check for required fields
+        if 'id' not in data or 'status' not in data:
+            return jsonify({'error': 'Missing required fields: id and status'}), 400
+
+        request_id = int(data['id'])
+        new_status = data['status']
+
+        # Validate status values
+        valid_statuses = ['pending', 'approved', 'rejected']
+        if new_status not in valid_statuses:
+            return jsonify({'error': f'Invalid status. Must be one of: {valid_statuses}'}), 400
+
+        # Check if request exists
+        check_query = "SELECT request_id FROM flood_risk_solution.user_requests WHERE request_id = %s"
+        cursor = mysql.connection.cursor()
+        cursor.execute(check_query, (request_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            cursor.close()
+            return jsonify({'error': 'Request not found'}), 404
+
+        # Update the status
+        update_query = "UPDATE flood_risk_solution.user_requests SET status = %s WHERE request_id = %s"
+        cursor.execute(update_query, (new_status, request_id))
+        mysql.connection.commit()
+        cursor.close()
+
+        return jsonify({'message': 'Status updated successfully'}), 200
+
+    except ValueError:
+        return jsonify({'error': 'Invalid data type for id'}), 400
+    except Exception as e:
+        return jsonify({'error': 'Server error', 'details': str(e)}), 500

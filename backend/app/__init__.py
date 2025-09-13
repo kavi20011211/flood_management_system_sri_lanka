@@ -10,7 +10,7 @@ def create_app():
     app.secret_key = ""
     app.config['MYSQL_HOST'] = 'localhost'
     app.config['MYSQL_USER'] = 'root'
-    app.config['MYSQL_PASSWORD'] = ''
+    app.config['MYSQL_PASSWORD'] = '@Lk6985iop'
     app.config['MYSQL_DB'] = 'flood_risk_solution'
 
     # Update CORS

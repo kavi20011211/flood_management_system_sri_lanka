@@ -1,8 +1,16 @@
-import { Home, Menu, MessageSquare, Package, TrendingUp } from "lucide-react";
+import {
+  BellIcon,
+  Home,
+  Menu,
+  MessageSquare,
+  Package,
+  TrendingUp,
+} from "lucide-react";
 import FeedbackManagementDashboard from "./FeedbackManagement";
 import ResourceAllocationDashboard from "./ResouceAllocationPage";
 import ResourcePredictionDashboard from "./ResourcePredictionPage";
 import { useState } from "react";
+import RequestManagement from "./RequestManagement";
 
 const HomePage = () => (
   <div className="p-8">
@@ -75,6 +83,7 @@ export default function App() {
     { id: "feedback", name: "Feedback Management", icon: MessageSquare },
     { id: "allocation", name: "Resource Allocation", icon: Package },
     { id: "prediction", name: "Resource Prediction", icon: TrendingUp },
+    { id: "requests", name: "Requests Management", icon: BellIcon },
   ];
 
   const renderCurrentPage = () => {
@@ -87,6 +96,8 @@ export default function App() {
         return <ResourceAllocationDashboard />;
       case "prediction":
         return <ResourcePredictionDashboard />;
+      case "requests":
+        return <RequestManagement />;
       default:
         return <HomePage />;
     }

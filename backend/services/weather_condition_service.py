@@ -110,7 +110,7 @@ def generateRiskSummary():
         # Add your OpenRouter API key here
         OPENROUTER_API_KEY = "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"
 
-        if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "your_api_key_here":
+        if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "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":
             return jsonify({'error': 'OpenRouter API key not configured'}), 500
 
         prompt = f"""You are a disaster response AI specialized in flood risk assessment.
