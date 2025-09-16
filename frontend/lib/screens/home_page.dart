@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
 
     // Build the URL with query parameters
     final url = Uri.parse(
-        'http://192.168.1.100:5000/get-risk-prediction?area=$currentLocation');
+        'http://192.168.117.1:5000/get-risk-prediction?area=$currentLocation');
 
     try {
       final response = await http.get(url);
@@ -184,7 +184,7 @@ class _HomePageState extends State<HomePage> {
       return "";
     }
 
-    final url = Uri.parse('http://192.168.1.100:5000/generate-risk-summary');
+    final url = Uri.parse('http://192.168.117.1:5000/generate-risk-summary');
 
     try {
       final response = await http.post(

@@ -74,8 +74,8 @@ class SafeHouseOptimizer:
         self._priority_weights = weights
 
     def solve_optimizer(self):
-        # Create the problem
-        prob = pulp.LpProblem("SafeHouse_Resource_Allocation", pulp.LpMinimize)
+        # Create the problem - Changed to MAXIMIZE satisfaction instead of minimize penalty
+        prob = pulp.LpProblem("SafeHouse_Resource_Allocation", pulp.LpMaximize)
 
         # Decision Variables
         # x[sh][resource] = amount of resource allocated to safe house
@@ -89,25 +89,35 @@ class SafeHouseOptimizer:
                     cat='Continuous'
                 )
 
-        # Binary variables for unmet demand penalty
-        unmet = {}
+        # Satisfaction ratio variables (0 to 1 for each safe house-resource pair)
+        satisfaction = {}
         for sh in self.safe_houses:
-            unmet[sh] = {}
+            satisfaction[sh] = {}
             for resource in self.resources:
-                unmet[sh][resource] = pulp.LpVariable(
-                    f"unmet_{sh}_{resource}",
+                satisfaction[sh][resource] = pulp.LpVariable(
+                    f"sat_{sh}_{resource}",
                     lowBound=0,
+                    upBound=1,  # Cannot exceed 100% satisfaction
                     cat='Continuous'
                 )
 
-        # Objective function: Minimize unmet demand penalty
-        unmet_demand_penalty = pulp.lpSum([
-            unmet[sh][resource] * 1000 * self.priority_weights[sh]  # High penalty
+        # NEW: Overall satisfaction variable for each safe house
+        overall_satisfaction = {}
+        for sh in self.safe_houses:
+            overall_satisfaction[sh] = pulp.LpVariable(
+                f"overall_sat_{sh}",
+                lowBound=0,
+                upBound=1,
+                cat='Continuous'
+            )
+
+        # Objective function: Maximize weighted satisfaction
+        total_satisfaction = pulp.lpSum([
+            overall_satisfaction[sh] * self.priority_weights[sh]
             for sh in self.safe_houses
-            for resource in self.resources
         ])
 
-        prob += unmet_demand_penalty
+        prob += total_satisfaction
 
         # Constraints
 
@@ -116,34 +126,39 @@ class SafeHouseOptimizer:
             prob += pulp.lpSum([x[sh][resource] for sh in self.safe_houses]) <= self.supply[
                 resource], f"Supply_{resource}"
 
-        # 2. Demand satisfaction constraints (with slack for unmet demand)
+        # 2. Link allocation to satisfaction ratio
         for sh in self.safe_houses:
             for resource in self.resources:
-                prob += x[sh][resource] + unmet[sh][resource] >= self.demands[sh][
-                    resource], f"Demand_{sh}_{resource}"
+                if self.demands[sh][resource] > 0:
+                    prob += x[sh][resource] == satisfaction[sh][resource] * self.demands[sh][
+                        resource], f"Satisfaction_Link_{sh}_{resource}"
+                else:
+                    prob += x[sh][resource] == 0, f"Zero_Demand_{sh}_{resource}"
 
-        # 3. Minimum allocation constraints (ensure each safe house gets at least something)
+        # 3. Overall satisfaction is the minimum of individual resource satisfactions
         for sh in self.safe_houses:
             for resource in self.resources:
-                prob += x[sh][resource] >= 0.1 * self.demands[sh][resource], f"Min_{sh}_{resource}"
+                prob += overall_satisfaction[sh] <= satisfaction[sh][resource], f"Min_Satisfaction_{sh}_{resource}"
 
-        # 4. Equity constraint (no safe house should get less than 60% of their needs)
+        # 4. Minimum allocation constraints (ensure each safe house gets at least 30% of needs)
         for sh in self.safe_houses:
-            total_demand = sum(self.demands[sh].values())
-            if total_demand > 0:  # Avoid division by zero
-                total_allocated = pulp.lpSum([x[sh][resource] for resource in self.resources])
-                prob += total_allocated >= 0.6 * total_demand, f"Equity_{sh}"
+            prob += overall_satisfaction[sh] >= 0.3, f"Min_Overall_{sh}"
+
+        # 5. Fair distribution: Higher priority houses can get up to 100%, lower priority at least 50%
+        for sh in self.safe_houses:
+            min_satisfaction = max(0.5, 0.3 + (self.priority_weights[sh] - 1) * 0.1)
+            prob += overall_satisfaction[sh] >= min_satisfaction, f"Fair_Distribution_{sh}"
 
         # Solve the problem
         prob.solve(pulp.PULP_CBC_CMD(msg=0))
 
-        return prob, x, unmet
+        return prob, x, satisfaction, overall_satisfaction
 
-    def get_results_dict(self, prob, x, unmet):
+    def get_results_dict(self, prob, x, satisfaction, overall_satisfaction):
         """Return results as a dictionary for API response"""
         results = {
             'status': pulp.LpStatus[prob.status],
-            'total_cost': prob.objective.value() if prob.objective.value() else 0,
+            'total_satisfaction': prob.objective.value() if prob.objective.value() else 0,
             'allocations': {},
             'unmet_demands': {},
             'resource_utilization': {},
@@ -156,39 +171,40 @@ class SafeHouseOptimizer:
             for resource in self.resources:
                 allocated = x[sh][resource].value() if x[sh][resource].value() else 0
                 demanded = self.demands[sh][resource]
+                satisfaction_ratio = satisfaction[sh][resource].value() if satisfaction[sh][resource].value() else 0
+
                 results['allocations'][sh][resource] = {
-                    'allocated': allocated,
+                    'allocated': round(allocated, 2),
                     'demanded': demanded,
-                    'percentage': (allocated / demanded * 100) if demanded > 0 else 0
+                    'percentage': round(satisfaction_ratio * 100, 1)
                 }
 
         # Unmet demand analysis
         for sh in self.safe_houses:
             results['unmet_demands'][sh] = {}
             for resource in self.resources:
-                unmet_val = unmet[sh][resource].value() if unmet[sh][resource].value() else 0
-                if unmet_val > 0.01:  # Avoid tiny floating point values
-                    results['unmet_demands'][sh][resource] = unmet_val
+                allocated = x[sh][resource].value() if x[sh][resource].value() else 0
+                demanded = self.demands[sh][resource]
+                unmet = max(0, demanded - allocated)
+                if unmet > 0.01:  # Only show significant unmet demands
+                    results['unmet_demands'][sh][resource] = round(unmet, 2)
 
         # Resource utilization
         for resource in self.resources:
             used = sum([x[sh][resource].value() if x[sh][resource].value() else 0
-                       for sh in self.safe_houses])
+                        for sh in self.safe_houses])
             available = self.supply[resource]
             results['resource_utilization'][resource] = {
-                'used': used,
+                'used': round(used, 2),
                 'available': available,
-                'utilization_percentage': (used / available * 100) if available > 0 else 0
+                'utilization_percentage': round((used / available * 100), 1) if available > 0 else 0
             }
 
         # Satisfaction rates by safe house
         for sh in self.safe_houses:
-            total_demand = sum(self.demands[sh].values())
-            total_allocated = sum([x[sh][resource].value() if x[sh][resource].value() else 0
-                                 for resource in self.resources])
-            satisfaction = (total_allocated / total_demand * 100) if total_demand > 0 else 0
+            overall_sat = overall_satisfaction[sh].value() if overall_satisfaction[sh].value() else 0
             results['satisfaction_rates'][sh] = {
-                'satisfaction_percentage': satisfaction,
+                'satisfaction_percentage': round(overall_sat * 100, 1),
                 'priority': self.priority_weights[sh]
             }
 

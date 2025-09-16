@@ -71,7 +71,6 @@ def getAllSHData():
 
 def calculate_resource_demands(capacity):
     """Calculate resource demands based on safe house capacity"""
-    # Basic resource requirements per person
     capacity = float(capacity)
     per_person_requirements = {
         'food': 3,  # meals per day
@@ -89,13 +88,13 @@ def calculate_resource_demands(capacity):
 
 
 def get_default_supply():
-    """Get default available supply for resources"""
+    """Get default available supply for resources - ADJUSTED to be more realistic"""
     return {
-        'food': 10000,
-        'water': 50000,
-        'medicine': 2000,
-        'blankets': 5000,
-        'shelter_materials': 3000
+        'food': 5000,  # Reduced from 10000
+        'water': 8000,  # Reduced from 50000
+        'medicine': 6000,  # Reduced from 2000
+        'blankets': 8000,  # Reduced from 5000
+        'shelter_materials': 5500  # Reduced from 3000
     }
 
 
@@ -137,62 +136,67 @@ def requestResourcesAllocation():
             demands[sh['safe_area']] = calculate_resource_demands(sh['capacity'])
         optimizer.demands = demands
 
-        # Set up supply
+        # Set up supply (using more realistic values)
         optimizer.supply = get_default_supply()
 
-        # Set up priority weights (higher priority = higher weight)
+        # Set up priority weights - NORMALIZED to 1-3 scale
         priority_weights = {}
         for sh in sh_data:
-            # Convert priority to weight (assuming priority is 1-5, convert to weight 1-3)
-            # Ensure all operations use float
             priority = float(sh['priority'])
-            weight = min(priority / 2.0, 3.0)
+            # Normalize priority to 1-3 scale based on input range
+            if priority <= 1:
+                weight = 1.0
+            elif priority <= 2:
+                weight = 2.0
+            else:
+                weight = 3.0
             priority_weights[sh['safe_area']] = weight
         optimizer.priority_weights = priority_weights
 
-        # Debug: Print data types to verify
-        print("Sample capacity type:", type(sh_data[0]['capacity']) if sh_data else "No data")
-        print("Sample priority type:", type(sh_data[0]['priority']) if sh_data else "No data")
-        print("Sample demand value type:", type(list(demands.values())[0]['food']) if demands else "No demands")
+        # Debug: Print setup info
+        print("=== OPTIMIZATION SETUP ===")
+        print(f"Safe houses: {len(safe_house_names)}")
+        print("Total demands per resource:")
+        total_demands = {}
+        for resource in optimizer.resources:
+            total_demands[resource] = sum(demands[sh][resource] for sh in safe_house_names)
+            print(f"  {resource}: {total_demands[resource]} (supply: {optimizer.supply[resource]})")
+
+        print("Priority weights:", priority_weights)
 
         # Solve optimization
-        prob, x, unmet = optimizer.solve_optimizer()
+        prob, x, satisfaction, overall_satisfaction = optimizer.solve_optimizer()
 
         # Check if solution is optimal
         if prob.status != pulp.LpStatusOptimal:
             return jsonify({
                 'error': 'Optimization failed',
-                'status': pulp.LpStatus[prob.status]
+                'status': pulp.LpStatus[prob.status],
+                'message': 'Try adjusting supply levels or reducing demands'
             }), 400
 
         # Get results
-        results = optimizer.get_results_dict(prob, x, unmet)
+        results = optimizer.get_results_dict(prob, x, satisfaction, overall_satisfaction)
+
+        # Add summary statistics
+        results['summary'] = {
+            'total_safe_houses': len(safe_house_names),
+            'average_satisfaction': round(sum([results['satisfaction_rates'][sh]['satisfaction_percentage']
+                                               for sh in safe_house_names]) / len(safe_house_names), 1),
+            'resource_shortage': {}
+        }
+
+        # Identify resource shortages
+        for resource in optimizer.resources:
+            if total_demands[resource] > optimizer.supply[resource]:
+                shortage_pct = round((1 - optimizer.supply[resource] / total_demands[resource]) * 100, 1)
+                results['summary']['resource_shortage'][resource] = f"{shortage_pct}% shortage"
 
         return jsonify({
             'success': True,
             'message': 'Resource allocation optimized successfully',
             'data': results
         }), 200
-
-    except Exception as e:
-        print(f"Error in requestResourcesAllocation: {str(e)}")
-        print(f"Error type: {type(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': 'Server error', 'details': str(e)}), 500
-
-
-def getSHResourcesPrediction():
-    try:
-        people_count = float(request.args.get('people_count'))
-        severity = float(request.args.get('severity'))
-
-        model = joblib.load('./models/linear_regression_model.pkl')
-        features = np.array([[people_count, severity]])
-
-        prediction = model.predict(features)
-
-        return jsonify({'prediction': prediction.tolist()})
 
     except Exception as e:
         print(f"Error in requestResourcesAllocation: {str(e)}")

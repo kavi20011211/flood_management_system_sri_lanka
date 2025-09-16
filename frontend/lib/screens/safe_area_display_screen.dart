@@ -28,7 +28,7 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
   final Set<Marker> _markers = {};
 
   // API base URL - consider moving this to a config file
-  static const String baseUrl = 'http://192.168.1.100:5000';
+  static const String baseUrl = 'http://192.168.117.1:5000';
 
   @override
   void initState() {

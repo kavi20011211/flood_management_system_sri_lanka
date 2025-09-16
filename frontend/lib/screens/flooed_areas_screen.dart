@@ -26,7 +26,7 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
   bool showRouteInfo = false; // Flag to show route information
 
   // API base URL - consider moving this to a config file
-  static const String baseUrl = 'http://192.168.1.100:5000';
+  static const String baseUrl = 'http://192.168.117.1:5000';
 
   // JSON data for safe routes
   final Map<String, dynamic> safeRoutesData = {
