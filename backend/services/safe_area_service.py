@@ -1,3 +1,5 @@
+import os
+import pickle
 from decimal import Decimal
 
 from flask import request, jsonify
@@ -204,3 +206,118 @@ def requestResourcesAllocation():
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Server error', 'details': str(e)}), 500
+
+
+# Global variables for model and scaler
+model = None
+scaler = None
+
+# def load_model_and_scaler():
+#     global model, scaler
+#
+#     import os
+#     print(os.path.exists('./models/supply_predictionmodel.pkl'))
+#     print(os.path.exists('./models/supplyscaler.pkl'))
+#
+#     try:
+#         model = joblib.load('./models/supply_predictionmodel.pkl')
+#         scaler = joblib.load('./models/supplyscaler.pkl')
+#         return True
+#     except Exception as e:
+#         print(f"Error loading model: {e}")
+
+
+def predict_resources(severity, people_count):
+    """
+    Predict resource requirements based on severity and people count
+
+    Parameters:
+    -----------
+    severity : int
+        Severity level (1=Low, 2=Moderate, 3=High)
+    people_count : int
+        Number of affected people
+
+    Returns:
+    --------
+    list : Predicted resource quantities
+           [bandages, ors_kits, water_liters, mosquito_nets, antibiotics, first_aids, saline]
+    """
+    model = joblib.load('./models/supply_predictionmodel.pkl')
+    scaler = joblib.load('./models/supplyscaler.pkl')
+
+    if model is None or scaler is None:
+        raise Exception("Model not loaded")
+
+    # Create input array
+    sample_input = np.array([[severity, people_count]])
+
+    # Scale the input
+    sample_input_scaled = scaler.transform(sample_input)
+
+    # Predict
+    prediction = model.predict(sample_input_scaled)
+
+    # Round to integers and return as list
+    return prediction.tolist()
+
+
+def getSHResourcesPrediction():
+    try:
+        # Get query parameters
+        severity = request.args.get('severity', type=int)
+        people_count = request.args.get('people_count', type=int)
+
+        # Validate inputs
+        if severity is None:
+            return jsonify({
+                'error': 'Missing required parameter: severity',
+                'message': 'Please provide severity level (1, 2, or 3)'
+            }), 400
+
+        if people_count is None:
+            return jsonify({
+                'error': 'Missing required parameter: people_count',
+                'message': 'Please provide number of affected people'
+            }), 400
+
+        # Validate severity range
+        if severity not in [1, 2, 3]:
+            return jsonify({
+                'error': 'Invalid severity level',
+                'message': 'Severity must be 1 (Low), 2 (Moderate), or 3 (High)'
+            }), 400
+
+        # Validate people_count
+        if people_count <= 0:
+            return jsonify({
+                'error': 'Invalid people count',
+                'message': 'People count must be greater than 0'
+            }), 400
+
+        # Make prediction
+        prediction = predict_resources(severity, people_count)
+
+        # Return response
+        return jsonify({
+            'prediction': prediction,
+            'input': {
+                'severity': severity,
+                'people_count': people_count
+            },
+            'resources': {
+                'bandages': int(prediction[0][0]),
+                'ors_kits': int(prediction[0][1]),
+                'water_liters': int(prediction[0][2]),
+                'mosquito_nets': int(prediction[0][3]),
+                'antibiotics': int(prediction[0][4]),
+                'first_aids': int(prediction[0][5]),
+                'saline': int(prediction[0][6])
+            }
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            'error': 'Prediction failed',
+            'message': str(e)
+        }), 500

@@ -19,7 +19,7 @@ class _ControllerScreenState extends State<ControllerScreen> {
     String? error;
 
     // API base URL - consider moving this to a config file
-    const String baseUrl = 'http://192.168.117.1:5000';
+    const String baseUrl = 'http://192.168.8.172:5000';
 
     Future<void> sendFeedback(String feedback) async {
       setState(() {

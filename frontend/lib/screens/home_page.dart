@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
 
     // Build the URL with query parameters
     final url = Uri.parse(
-        'http://192.168.117.1:5000/get-risk-prediction?area=$currentLocation');
+        'http://192.168.8.172:5000/get-risk-prediction?area=$currentLocation');
 
     try {
       final response = await http.get(url);
@@ -184,7 +184,7 @@ class _HomePageState extends State<HomePage> {
       return "";
     }
 
-    final url = Uri.parse('http://192.168.117.1:5000/generate-risk-summary');
+    final url = Uri.parse('http://192.168.8.172:5000/generate-risk-summary');
 
     try {
       final response = await http.post(
@@ -268,153 +268,186 @@ class _HomePageState extends State<HomePage> {
         break;
     }
 
-    return Container(
-      height: height,
-      width: width,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Header
-          Container(
-            height: 80,
-            width: width,
-            color: Colors.amber.shade200,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(10.0),
-                  child: Text(
-                    "Hello User!",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.location_pin, color: Colors.red),
-                      SizedBox(width: 4),
-                      Text(
-                        location.isNotEmpty ? location : "Unknown",
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Loading or Error State
-          if (isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else if (error != null)
+    return SingleChildScrollView(
+      child: Container(
+        height: height,
+        width: width,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Header
             Container(
+              height: 80,
               width: width,
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.shade300),
-              ),
-              child: Column(
+              color: Colors.amber.shade200,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.error, color: Colors.red, size: 40),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Error: $error",
-                    style: TextStyle(color: Colors.red.shade700),
-                    textAlign: TextAlign.center,
+                  const Padding(
+                    padding: EdgeInsets.all(10.0),
+                    child: Text(
+                      "Hello User!",
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: fetchPrediction,
-                    child: const Text("Retry"),
-                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.location_pin, color: Colors.red),
+                        SizedBox(width: 4),
+                        Text(
+                          location.isNotEmpty ? location : "Unknown",
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  )
                 ],
               ),
-            )
-          else ...[
-            // Date Info
-            Padding(
-              padding: const EdgeInsets.only(left: 12, bottom: 10),
-              child: Text(
-                "Flood risk update for today: $formattedDate",
-                style:
-                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-              ),
             ),
-
-            // Risk Level Banner
-            if (riskLevel.isNotEmpty)
-              Container(
-                width: width,
-                color: riskColor,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                child: Row(
-                  children: [
-                    riskIcon,
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        riskMessage,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
             const SizedBox(height: 20),
 
-            // Generated Info + Button if High Risk
-            if (generatedText.isNotEmpty)
+            // Loading or Error State
+            if (isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (error != null)
               Container(
                 width: width,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.symmetric(horizontal: 8),
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: Colors.red.shade300),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Icon(Icons.error, color: Colors.red, size: 40),
+                    const SizedBox(height: 8),
                     Text(
-                      generatedText,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        height: 1.5,
-                      ),
+                      "Error: $error",
+                      style: TextStyle(color: Colors.red.shade700),
+                      textAlign: TextAlign.center,
                     ),
-                    if (riskLevel.toLowerCase() == 'high') ...[
-                      const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: fetchPrediction,
+                      child: const Text("Retry"),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              // Date Info
+              Padding(
+                padding: const EdgeInsets.only(left: 12, bottom: 10),
+                child: Text(
+                  "Flood risk update for today: $formattedDate",
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 18),
+                ),
+              ),
+
+              // Risk Level Banner
+              if (riskLevel.isNotEmpty)
+                Container(
+                  width: width,
+                  color: riskColor,
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                  child: Row(
+                    children: [
+                      riskIcon,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          riskMessage,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
+              // Generated Info + Button if High Risk
+              if (generatedText.isNotEmpty)
+                Container(
+                  width: width,
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        generatedText,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.5,
+                        ),
+                      ),
+                      if (riskLevel.toLowerCase() == 'high') ...[
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      const SafeAreaDisplayScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.place),
+                          label: const Text("Please find the safe zones here"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      SizedBox(
+                        height: 8,
+                      ),
+
+                      // Flood prone areas button
                       ElevatedButton.icon(
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) =>
-                                    const SafeAreaDisplayScreen()),
+                                builder: (context) => FlooedAreasScreen(
+                                      severity:
+                                          '${riskLevel.toLowerCase().toString()}',
+                                    )),
                           );
                         },
                         icon: const Icon(Icons.place),
-                        label: const Text("Please find the safe zones here"),
+                        label: const Text(
+                            "Please find the flooded prone areas here"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.redAccent,
                           foregroundColor: Colors.white,
@@ -426,57 +459,27 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ],
-
-                    SizedBox(
-                      height: 8,
-                    ),
-
-                    // Flood prone areas button
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => FlooedAreasScreen(
-                                    severity:
-                                        '${riskLevel.toLowerCase().toString()}',
-                                  )),
-                        );
-                      },
-                      icon: const Icon(Icons.place),
-                      label: const Text(
-                          "Please find the flooded prone areas here"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
 
-            // Refresh Button
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Center(
-                child: ElevatedButton.icon(
-                  onPressed: fetchPrediction,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text("Refresh Data"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+              // Refresh Button
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Center(
+                  child: ElevatedButton.icon(
+                    onPressed: fetchPrediction,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Refresh Data"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

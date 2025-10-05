@@ -26,7 +26,7 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
   bool showRouteInfo = false; // Flag to show route information
 
   // API base URL - consider moving this to a config file
-  static const String baseUrl = 'http://192.168.117.1:5000';
+  static const String baseUrl = 'http://192.168.8.172:5000';
 
   // JSON data for safe routes
   final Map<String, dynamic> safeRoutesData = {
@@ -306,9 +306,14 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
 
   Future<void> _drawSafeRoute() async {
     // Check if we should draw the safe route
-    if (widget.severity.toLowerCase() == 'high' &&
+    if ((widget.severity.toLowerCase() == 'high' ||
+            widget.severity.toLowerCase() == 'moderate') &&
         userCurrentLocation?.toLowerCase() == 'kaduwela') {
-      debugPrint("Drawing safe route for Kaduwela - High severity");
+      debugPrint("Drawing safe route for Kaduwela - ${widget.severity}");
+
+      // if (widget.severity.toLowerCase() == 'high' &&
+      //     userCurrentLocation?.toLowerCase() == 'kaduwela') {
+      //   debugPrint("Drawing safe route for Kaduwela - High severity");
 
       // Get route data for Kaduwela
       final highSeverityRoutes = safeRoutesData['high'] as List;
@@ -464,12 +469,12 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
                       ? Colors.orange
                       : Colors.yellow)
               .withOpacity(0.3),
-          // strokeColor: proneArea['severity'] == 'high'
-          //     ? Colors.red
-          //     : proneArea['severity'] == 'moderate'
-          //         ? Colors.orange
-          //         : Colors.yellow,
-          // strokeWidth: 2,
+          strokeColor: proneArea['severity'] == 'high'
+              ? Colors.red
+              : proneArea['severity'] == 'moderate'
+                  ? Colors.orange
+                  : Colors.yellow,
+          strokeWidth: 0,
           consumeTapEvents: true,
           onTap: () {
             // Handle tap
