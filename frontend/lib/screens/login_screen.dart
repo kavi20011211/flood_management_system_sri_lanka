@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        'Res',
+                        'RES',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 48,
@@ -100,14 +100,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
-                          Icons.circle,
-                          color: Color(0xFFE85D5D),
-                          size: 20,
+                        // child: const Icon(
+                        //   Icons.,
+                        //   color: Color(0xFFE85D5D),
+                        //   size: 20,
+                        // ),
+                        child: Text(
+                          "Q",
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFE85D5D)),
                         ),
                       ),
                       const Text(
-                        'Call',
+                        'CALL',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 48,

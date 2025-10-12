@@ -316,47 +316,47 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 // ),
                 const SizedBox(height: 12),
 
-                if (feedbackHistory.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(40),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.feedback_outlined,
-                            size: 64,
-                            color: Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "No feedback history yet",
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: feedbackHistory.length,
-                    itemBuilder: (context, index) {
-                      final feedback = feedbackHistory[index];
-                      return _buildFeedbackCard(
-                        feedback['feedback'],
-                        feedback['date'],
-                        feedback['status'],
-                      );
-                    },
-                  ),
+                // if (feedbackHistory.isEmpty)
+                // Container(
+                //   padding: const EdgeInsets.all(40),
+                //   decoration: BoxDecoration(
+                //     color: Colors.white,
+                //     borderRadius: BorderRadius.circular(16),
+                //   ),
+                //   child: Center(
+                //     child: Column(
+                //       children: [
+                //         Icon(
+                //           Icons.feedback_outlined,
+                //           size: 64,
+                //           color: Colors.grey.shade300,
+                //         ),
+                //         const SizedBox(height: 16),
+                //         Text(
+                //           "No feedback history yet",
+                //           style: TextStyle(
+                //             fontSize: 16,
+                //             color: Colors.grey.shade600,
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // )
+                // else
+                //   ListView.builder(
+                //     shrinkWrap: true,
+                //     physics: const NeverScrollableScrollPhysics(),
+                //     itemCount: feedbackHistory.length,
+                //     itemBuilder: (context, index) {
+                //       final feedback = feedbackHistory[index];
+                //       return _buildFeedbackCard(
+                //         feedback['feedback'],
+                //         feedback['date'],
+                //         feedback['status'],
+                //       );
+                //     },
+                //   ),
 
                 const SizedBox(height: 20),
               ],

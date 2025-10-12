@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/screens/flooed_areas_screen.dart';
 import 'package:frontend/screens/safe_area_display_screen.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -21,6 +22,8 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? weatherFeatures;
   bool isLoading = true;
   String? error;
+  GoogleMapController? _mapController;
+  final LatLng _sriLankaCenter = const LatLng(7.8731, 80.7718);
 
   @override
   void initState() {
@@ -233,6 +236,8 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 16),
                         if (generatedText.isNotEmpty) _buildAlertCard(),
                         const SizedBox(height: 16),
+                        if (generatedText.isNotEmpty) _buildMapPreview(),
+                        const SizedBox(height: 16),
                         _buildRiskLevelCard(),
                         const SizedBox(height: 24),
                         _buildPopularServices(),
@@ -250,23 +255,6 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // const Column(
-          //   crossAxisAlignment: CrossAxisAlignment.start,
-          //   children: [
-          //     Text(
-          //       "Hello User!",
-          //       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          //     ),
-          //     SizedBox(height: 4),
-          //     Text(
-          //       "Stay safe and informed",
-          //       style: TextStyle(
-          //         fontSize: 14,
-          //         color: Colors.grey,
-          //       ),
-          //     ),
-          //   ],
-          // ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -301,6 +289,7 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildAlertCard() {
     return Container(
+      height: 350,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -406,6 +395,114 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildMapPreview() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FlooedAreasScreen(
+              severity: riskLevel.toLowerCase(),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        height: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              GoogleMap(
+                onMapCreated: (controller) => _mapController = controller,
+                initialCameraPosition: CameraPosition(
+                  target: _sriLankaCenter,
+                  zoom: 7.0,
+                ),
+                myLocationEnabled: false,
+                myLocationButtonEnabled: false,
+                zoomControlsEnabled: false,
+                scrollGesturesEnabled: false,
+                zoomGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                rotateGesturesEnabled: false,
+                mapToolbarEnabled: false,
+                compassEnabled: false,
+              ),
+              // Overlay with gradient and text
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.7),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'View Affected Areas',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Tap to see detailed map',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRiskLevelCard() {
     Color riskColor;
     IconData riskIcon;
@@ -478,65 +575,37 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(
-                "Risk Level",
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 13,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                "${(riskPercentage * 100).toInt()}%",
-                style: TextStyle(
-                  color: Colors.grey.shade800,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: riskPercentage,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(riskColor),
-              minHeight: 8,
-            ),
-          ),
-          // if (riskLevel.toLowerCase() == 'high') ...[
-          //   const SizedBox(height: 16),
-          //   SizedBox(
-          //     width: double.infinity,
-          //     child: OutlinedButton.icon(
-          //       onPressed: () {
-          //         Navigator.push(
-          //           context,
-          //           MaterialPageRoute(
-          //             builder: (context) => FlooedAreasScreen(
-          //               severity: riskLevel,
-          //             ),
-          //           ),
-          //         );
-          //       },
-          //       icon: const Icon(Icons.warning_amber_rounded, size: 18),
-          //       label: const Text("Find Effected Zones"),
-          //       style: OutlinedButton.styleFrom(
-          //         foregroundColor: Colors.red.shade600,
-          //         side: BorderSide(color: Colors.red.shade600),
-          //         padding: const EdgeInsets.symmetric(vertical: 12),
-          //         shape: RoundedRectangleBorder(
-          //           borderRadius: BorderRadius.circular(12),
-          //         ),
+          // const SizedBox(height: 16),
+          // Row(
+          //   children: [
+          //     Text(
+          //       "Risk Level",
+          //       style: TextStyle(
+          //         color: Colors.grey.shade600,
+          //         fontSize: 13,
           //       ),
           //     ),
+          //     const Spacer(),
+          //     Text(
+          //       "${(riskPercentage * 100).toInt()}%",
+          //       style: TextStyle(
+          //         color: Colors.grey.shade800,
+          //         fontSize: 13,
+          //         fontWeight: FontWeight.bold,
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          // const SizedBox(height: 8),
+          // ClipRRect(
+          //   borderRadius: BorderRadius.circular(10),
+          //   child: LinearProgressIndicator(
+          //     value: riskPercentage,
+          //     backgroundColor: Colors.grey.shade200,
+          //     valueColor: AlwaysStoppedAnimation<Color>(riskColor),
+          //     minHeight: 8,
           //   ),
-          // ],
+          // ),
         ],
       ),
     );
