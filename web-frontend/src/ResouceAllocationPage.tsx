@@ -74,13 +74,36 @@ interface ChartData {
   color?: string;
 }
 
-type TabType = "overview" | "allocations" | "utilization" | "satisfaction";
+interface SupplyFormData {
+  food: string;
+  water: string;
+  medicine: string;
+  blankets: string;
+  shelter_materials: string;
+}
+
+type TabType =
+  | "overview"
+  | "allocations"
+  | "utilization"
+  | "satisfaction"
+  | "supply";
 
 const ResourceAllocationDashboard: React.FC = () => {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [supplyForm, setSupplyForm] = useState<SupplyFormData>({
+    food: "",
+    water: "",
+    medicine: "",
+    blankets: "",
+    shelter_materials: "",
+  });
+  const [submitLoading, setSubmitLoading] = useState<boolean>(false);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Sample data from your API response
   const sampleData: ApiResponse = {
@@ -210,12 +233,70 @@ const ResourceAllocationDashboard: React.FC = () => {
     fetchData();
   }, []);
 
+  const handleSupplyFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setSupplyForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSupplySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitLoading(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const payload = {
+        food: parseFloat(supplyForm.food) || 0,
+        water: parseFloat(supplyForm.water) || 0,
+        medicine: parseFloat(supplyForm.medicine) || 0,
+        blankets: parseFloat(supplyForm.blankets) || 0,
+        shelter_materials: parseFloat(supplyForm.shelter_materials) || 0,
+      };
+
+      const response = await fetch("http://localhost:5000/create-resources", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setSubmitSuccess("Supply added successfully!");
+        setSupplyForm({
+          food: "",
+          water: "",
+          medicine: "",
+          blankets: "",
+          shelter_materials: "",
+        });
+        // Optionally refresh the dashboard data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(result.error || "Failed to add supply");
+      }
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to add supply"
+      );
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mx-auto"></div>
+          <p className="mt-6 text-lg text-gray-700 font-medium">
             Loading resource allocation data...
           </p>
         </div>
@@ -225,16 +306,16 @@ const ResourceAllocationDashboard: React.FC = () => {
 
   if (error && !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
           <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Error Loading Data
           </h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-md"
           >
             Retry
           </button>
@@ -245,10 +326,10 @@ const ResourceAllocationDashboard: React.FC = () => {
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
           <AlertCircle className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
             No Data Available
           </h2>
           <p className="text-gray-600">
@@ -317,36 +398,37 @@ const ResourceAllocationDashboard: React.FC = () => {
     { id: "allocations", label: "Allocations" },
     { id: "utilization", label: "Utilization" },
     { id: "satisfaction", label: "Satisfaction" },
+    { id: "supply", label: "Add Supply" },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white shadow-md border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex justify-between items-center py-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Resource Allocation Dashboard
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mt-2 text-lg">
                 Real-time resource management and allocation tracking
               </p>
               {error && (
-                <div className="mt-2 flex items-center text-sm text-yellow-600">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                <div className="mt-3 flex items-center text-sm text-yellow-600 bg-yellow-50 px-3 py-2 rounded-md">
+                  <AlertCircle className="h-4 w-4 mr-2" />
                   <span>Using fallback data due to API error: {error}</span>
                 </div>
               )}
             </div>
             <div
-              className={`px-4 py-2 rounded-full ${getStatusColor(
+              className={`px-6 py-3 rounded-full shadow-md ${getStatusColor(
                 data.status
               )}`}
             >
               <div className="flex items-center space-x-2">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-semibold">{data.status}</span>
+                <CheckCircle className="h-6 w-6" />
+                <span className="font-bold text-lg">{data.status}</span>
               </div>
             </div>
           </div>
@@ -354,17 +436,17 @@ const ResourceAllocationDashboard: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white rounded-lg shadow-md p-2">
+          <nav className="flex space-x-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`flex-1 py-3 px-4 rounded-md font-medium text-sm transition-all ${
                   activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                    : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 {tab.label}
@@ -375,19 +457,21 @@ const ResourceAllocationDashboard: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {activeTab === "overview" && (
           <div className="space-y-6">
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
+              <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
-                  <Package className="h-8 w-8 text-blue-600" />
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <Package className="h-8 w-8 text-blue-600" />
+                  </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">
                       Total Resources
                     </p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-3xl font-bold text-gray-900">
                       {Object.values(data.resource_utilization)
                         .reduce((sum, r) => sum + r.available, 0)
                         .toLocaleString()}
@@ -396,14 +480,16 @@ const ResourceAllocationDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
+              <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
-                  <Activity className="h-8 w-8 text-green-600" />
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <Activity className="h-8 w-8 text-green-600" />
+                  </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">
                       Resources Used
                     </p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-3xl font-bold text-gray-900">
                       {Object.values(data.resource_utilization)
                         .reduce((sum, r) => sum + r.used, 0)
                         .toLocaleString()}
@@ -412,28 +498,32 @@ const ResourceAllocationDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
+              <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
-                  <Users className="h-8 w-8 text-purple-600" />
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <Users className="h-8 w-8 text-purple-600" />
+                  </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">
                       Locations
                     </p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-3xl font-bold text-gray-900">
                       {Object.keys(data.allocations).length}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
+              <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
-                  <TrendingUp className="h-8 w-8 text-orange-600" />
+                  <div className="p-3 bg-orange-100 rounded-lg">
+                    <TrendingUp className="h-8 w-8 text-orange-600" />
+                  </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">
                       Avg Utilization
                     </p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-3xl font-bold text-gray-900">
                       {Math.round(
                         Object.values(data.resource_utilization).reduce(
                           (sum, r) => sum + r.utilization_percentage,
@@ -449,8 +539,8 @@ const ResourceAllocationDashboard: React.FC = () => {
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900 mb-6">
                   Resource Distribution
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -476,8 +566,8 @@ const ResourceAllocationDashboard: React.FC = () => {
                 </ResponsiveContainer>
               </div>
 
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900 mb-6">
                   Location Satisfaction Rates
                 </h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -504,23 +594,26 @@ const ResourceAllocationDashboard: React.FC = () => {
             {Object.entries(data.allocations).map(([location, resources]) => (
               <div
                 key={location}
-                className="bg-white rounded-lg shadow-sm border overflow-hidden"
+                className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden"
               >
-                <div className="px-6 py-4 bg-gray-50 border-b">
-                  <h3 className="text-lg font-semibold text-gray-900">
+                <div className="px-6 py-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                  <h3 className="text-xl font-bold text-gray-900">
                     {location}
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 mt-1">
                     Priority:{" "}
-                    {(
-                      data.satisfaction_rates[location]?.priority * 100 || 0
-                    ).toFixed(0)}
-                    % | Satisfaction:{" "}
+                    <span className="font-semibold">
+                      {(
+                        data.satisfaction_rates[location]?.priority * 100 || 0
+                      ).toFixed(0)}
+                      %
+                    </span>{" "}
+                    | Satisfaction:{" "}
                     <span
-                      className={getSatisfactionColor(
+                      className={`font-semibold ${getSatisfactionColor(
                         data.satisfaction_rates[location]
                           ?.satisfaction_percentage || 0
-                      )}
+                      )}`}
                     >
                       {(
                         data.satisfaction_rates[location]
@@ -533,25 +626,30 @@ const ResourceAllocationDashboard: React.FC = () => {
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     {Object.entries(resources).map(([resource, info]) => (
-                      <div key={resource} className="border rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900 capitalize mb-2">
+                      <div
+                        key={resource}
+                        className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+                      >
+                        <h4 className="font-bold text-gray-900 capitalize mb-3 text-lg">
                           {resource.replace("_", " ")}
                         </h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-600">Demanded:</span>
-                            <span className="font-medium">{info.demanded}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Allocated:</span>
-                            <span className="font-medium">
-                              {info.allocated}
+                            <span className="font-semibold">
+                              {info.demanded}
                             </span>
                           </div>
                           <div className="flex justify-between">
+                            <span className="text-gray-600">Allocated:</span>
+                            <span className="font-semibold">
+                              {info.allocated}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
                             <span className="text-gray-600">Fulfillment:</span>
                             <span
-                              className={`font-medium ${getSatisfactionColor(
+                              className={`font-bold text-lg ${getSatisfactionColor(
                                 info.percentage
                               )}`}
                             >
@@ -569,9 +667,9 @@ const ResourceAllocationDashboard: React.FC = () => {
         )}
 
         {activeTab === "utilization" && (
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white rounded-xl shadow-md border border-gray-100">
+            <div className="px-6 py-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+              <h3 className="text-xl font-bold text-gray-900">
                 Resource Utilization
               </h3>
             </div>
@@ -592,12 +690,12 @@ const ResourceAllocationDashboard: React.FC = () => {
                   ([resource, info]) => (
                     <div
                       key={resource}
-                      className="border rounded-lg p-4 text-center"
+                      className="border-2 border-gray-200 rounded-lg p-5 text-center hover:border-blue-300 transition-colors"
                     >
-                      <h4 className="font-medium text-gray-900 capitalize mb-2">
+                      <h4 className="font-bold text-gray-900 capitalize mb-3">
                         {resource.replace("_", " ")}
                       </h4>
-                      <div className="text-2xl font-bold text-blue-600 mb-1">
+                      <div className="text-4xl font-bold text-blue-600 mb-2">
                         {info.utilization_percentage.toFixed(0)}%
                       </div>
                       <div className="text-sm text-gray-600">
@@ -613,9 +711,9 @@ const ResourceAllocationDashboard: React.FC = () => {
         )}
 
         {activeTab === "satisfaction" && (
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white rounded-xl shadow-md border border-gray-100">
+            <div className="px-6 py-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+              <h3 className="text-xl font-bold text-gray-900">
                 Satisfaction Analysis
               </h3>
             </div>
@@ -632,13 +730,13 @@ const ResourceAllocationDashboard: React.FC = () => {
                         type="monotone"
                         dataKey="satisfaction"
                         stroke="#3B82F6"
-                        strokeWidth={2}
+                        strokeWidth={3}
                       />
                       <Line
                         type="monotone"
                         dataKey="priority"
                         stroke="#10B981"
-                        strokeWidth={2}
+                        strokeWidth={3}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -647,13 +745,16 @@ const ResourceAllocationDashboard: React.FC = () => {
                 <div className="space-y-4">
                   {Object.entries(data.satisfaction_rates).map(
                     ([location, info]) => (
-                      <div key={location} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <h4 className="font-medium text-gray-900">
+                      <div
+                        key={location}
+                        className="border-2 border-gray-200 rounded-lg p-5 hover:border-blue-300 transition-colors"
+                      >
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-bold text-gray-900 text-lg">
                             {location}
                           </h4>
                           <span
-                            className={`px-2 py-1 rounded text-xs font-medium ${
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
                               info.satisfaction_percentage >= 100
                                 ? "bg-green-100 text-green-800"
                                 : info.satisfaction_percentage >= 80
@@ -668,12 +769,12 @@ const ResourceAllocationDashboard: React.FC = () => {
                               : "Needs Attention"}
                           </span>
                         </div>
-                        <div className="space-y-1 text-sm">
+                        <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-600">
                               Priority Weight:
                             </span>
-                            <span className="font-medium">
+                            <span className="font-semibold">
                               {(info.priority * 100).toFixed(0)}%
                             </span>
                           </div>
@@ -682,7 +783,7 @@ const ResourceAllocationDashboard: React.FC = () => {
                               Satisfaction Rate:
                             </span>
                             <span
-                              className={`font-medium ${getSatisfactionColor(
+                              className={`font-bold text-lg ${getSatisfactionColor(
                                 info.satisfaction_percentage
                               )}`}
                             >
@@ -695,6 +796,197 @@ const ResourceAllocationDashboard: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "supply" && (
+          <div className="bg-white rounded-xl shadow-md border border-gray-100">
+            <div className="px-6 py-5 bg-gradient-to-r from-green-50 to-emerald-50 border-b">
+              <h3 className="text-2xl font-bold text-gray-900">
+                Add New Supply
+              </h3>
+              <p className="text-sm text-gray-600 mt-2">
+                Enter the quantities of resources to add to the inventory
+              </p>
+            </div>
+            <div className="p-8">
+              <form onSubmit={handleSupplySubmit} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label
+                      htmlFor="food"
+                      className="block text-sm font-bold text-gray-700 mb-2"
+                    >
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                        Food (units)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      id="food"
+                      name="food"
+                      value={supplyForm.food}
+                      onChange={handleSupplyFormChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
+                      placeholder="Enter food quantity"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="water"
+                      className="block text-sm font-bold text-gray-700 mb-2"
+                    >
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-cyan-500 rounded-full mr-2"></span>
+                        Water (liters)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      id="water"
+                      name="water"
+                      value={supplyForm.water}
+                      onChange={handleSupplyFormChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all"
+                      placeholder="Enter water quantity"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="medicine"
+                      className="block text-sm font-bold text-gray-700 mb-2"
+                    >
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
+                        Medicine (units)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      id="medicine"
+                      name="medicine"
+                      value={supplyForm.medicine}
+                      onChange={handleSupplyFormChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                      placeholder="Enter medicine quantity"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="blankets"
+                      className="block text-sm font-bold text-gray-700 mb-2"
+                    >
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                        Blankets (units)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      id="blankets"
+                      name="blankets"
+                      value={supplyForm.blankets}
+                      onChange={handleSupplyFormChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="Enter blankets quantity"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="shelter_materials"
+                      className="block text-sm font-bold text-gray-700 mb-2"
+                    >
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                        Shelter Materials (units)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      id="shelter_materials"
+                      name="shelter_materials"
+                      value={supplyForm.shelter_materials}
+                      onChange={handleSupplyFormChange}
+                      min="0"
+                      step="0.01"
+                      required
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                      placeholder="Enter shelter materials quantity"
+                    />
+                  </div>
+                </div>
+
+                {submitSuccess && (
+                  <div className="flex items-center p-4 bg-green-50 border-2 border-green-200 rounded-lg shadow-sm animate-pulse">
+                    <CheckCircle className="h-6 w-6 text-green-600 mr-3" />
+                    <p className="text-green-800 font-semibold">
+                      {submitSuccess}
+                    </p>
+                  </div>
+                )}
+
+                {submitError && (
+                  <div className="flex items-center p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-sm">
+                    <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
+                    <p className="text-red-800 font-semibold">{submitError}</p>
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-4 pt-4 border-t-2 border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSupplyForm({
+                        food: "",
+                        water: "",
+                        medicine: "",
+                        blankets: "",
+                        shelter_materials: "",
+                      });
+                      setSubmitSuccess(null);
+                      setSubmitError(null);
+                    }}
+                    className="px-8 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold transition-all shadow-sm hover:shadow-md"
+                  >
+                    Reset Form
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitLoading}
+                    className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-md hover:shadow-lg transition-all"
+                  >
+                    {submitLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Package className="h-5 w-5 mr-2" />
+                        Add Supply
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -88,6 +88,7 @@ def calculate_resource_demands(capacity):
 
     return demands
 
+
 def create_supply():
     try:
         data = request.get_json()
@@ -101,7 +102,18 @@ def create_supply():
         blankets = data['blankets']
         shelter_materials = data['shelter_materials']
 
+        query = '''
+        INSERT INTO flood_risk_solution.resources 
+        (food, water, medicine, blankets, shelter_materials, created_date)
+        VALUES (%s, %s, %s, %s, %s, NOW())
+        '''
 
+        cursor = mysql.connection.cursor()
+        cursor.execute(query, (food, water, medicine, blankets, shelter_materials))
+        mysql.connection.commit()
+        cursor.close()
+
+        return jsonify({'message': 'Data inserted successfully'}), 200
     except Exception as e:
         print(e)
         return jsonify({'error': 'Server error', 'details': str(e)}), 500
@@ -130,6 +142,86 @@ def convert_decimal_to_float(obj):
         return obj
 
 
+def get_resources():
+    try:
+        # Use DictCursor for MySQLdb
+        cursor = mysql.connection.cursor()
+
+        query = '''
+        SELECT food, water, medicine, blankets, shelter_materials
+        FROM flood_risk_solution.resources
+        ORDER BY created_date DESC
+        LIMIT 1
+        '''
+        cursor.execute(query)
+
+        # Fetch as tuple and convert to dict manually
+        result = cursor.fetchone()
+        cursor.close()
+
+        if not result:
+            # If no data exists, return default supply
+            return jsonify({
+                'message': 'No data found. Returning default supply.',
+                'resources': get_default_supply()
+            }), 200
+
+        # Convert tuple to dictionary
+        resources = {
+            'food': result[0],
+            'water': result[1],
+            'medicine': result[2],
+            'blankets': result[3],
+            'shelter_materials': result[4]
+        }
+
+        # Return the retrieved data
+        return jsonify({
+            'message': 'Resources fetched successfully.',
+            'resources': resources
+        }), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({'error': 'Server error', 'details': str(e)}), 500
+
+
+# Add a helper function to get just the dictionary
+def get_resources_dict():
+    """Get resources as a dictionary (not a Flask response)"""
+    try:
+        cursor = mysql.connection.cursor()
+
+        query = '''
+        SELECT food, water, medicine, blankets, shelter_materials
+        FROM flood_risk_solution.resources
+        ORDER BY created_date DESC
+        LIMIT 1
+        '''
+        cursor.execute(query)
+        result = cursor.fetchone()
+        cursor.close()
+
+        if not result:
+            # Return default supply
+            return get_default_supply()
+
+        # Convert tuple to dictionary
+        resources = {
+            'food': result[0],
+            'water': result[1],
+            'medicine': result[2],
+            'blankets': result[3],
+            'shelter_materials': result[4]
+        }
+
+        return resources
+
+    except Exception as e:
+        print(f"Error fetching resources: {e}")
+        return get_default_supply()  # Return default on error
+
+
 def requestResourcesAllocation():
     try:
         # Get safe house data
@@ -156,8 +248,8 @@ def requestResourcesAllocation():
             demands[sh['safe_area']] = calculate_resource_demands(sh['capacity'])
         optimizer.demands = demands
 
-        # Set up supply (using more realistic values)
-        optimizer.supply = get_default_supply()
+        # ✅ FIX: Use the helper function that returns a dictionary
+        optimizer.supply = get_resources_dict()
 
         # Set up priority weights - NORMALIZED to 1-3 scale
         priority_weights = {}
@@ -226,9 +318,12 @@ def requestResourcesAllocation():
         return jsonify({'error': 'Server error', 'details': str(e)}), 500
 
 
+
+
 # Global variables for model and scaler
 model = None
 scaler = None
+
 
 # def load_model_and_scaler():
 #     global model, scaler

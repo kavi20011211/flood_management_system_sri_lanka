@@ -70,6 +70,10 @@ def handleFloodProne():
 def handleResourceAllocation():
     return safe_area_service.requestResourcesAllocation()
 
+@api.route('/create-resources',methods =['POST'])
+def handleCreateResources():
+    return safe_area_service.create_supply()
+
 
 # Predict safe houses resources needs based on people count and severity
 @api.route('/get-prediction-resources-needs', methods=['GET'])
