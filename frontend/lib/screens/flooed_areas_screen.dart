@@ -20,13 +20,14 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
   final LatLng _center = const LatLng(7.8731, 80.7718); // Sri Lanka center
   final Set<Marker> _markers = {};
   Set<Circle> _circles = {};
+  Set<Polygon> _polygons = {}; // Polygons for flood prone areas
   Set<Polyline> _polylines = {}; // Added for route drawing
   List<dynamic> floodProneAreas = [];
   String? userCurrentLocation;
   bool showRouteInfo = false; // Flag to show route information
 
   // API base URL - consider moving this to a config file
-  static const String baseUrl = 'http://192.168.8.172:5000';
+  static const String baseUrl = 'http://192.168.1.100:5000';
 
   // JSON data for safe routes
   final Map<String, dynamic> safeRoutesData = {
@@ -275,7 +276,21 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        if (data is List) {
+        // Check if response is GeoJSON FeatureCollection
+        if (data is Map && data['type'] == 'FeatureCollection') {
+          setState(() {
+            floodProneAreas = data['features'] ?? [];
+            isLoading = false;
+          });
+
+          debugPrint(
+              "Flood Prone areas (GeoJSON): ${floodProneAreas.length} features");
+          await _parseGeoJSONFeatures();
+
+          // Draw safe route if conditions are met
+          await _drawSafeRoute();
+        } else if (data is List) {
+          // Fallback for old format
           setState(() {
             floodProneAreas = data;
             isLoading = false;
@@ -426,6 +441,138 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
     );
   }
 
+  Future<void> _parseGeoJSONFeatures() async {
+    Set<Polygon> polygons = {};
+
+    for (var feature in floodProneAreas) {
+      try {
+        var geometry = feature['geometry'];
+        var properties = feature['properties'];
+
+        if (geometry != null && geometry['type'] == 'Polygon') {
+          String severity = properties['severity'] ?? 'low';
+          List<dynamic> coordinates = geometry['coordinates'][0]; // First ring
+
+          // Convert coordinates to LatLng (GeoJSON is [lng, lat])
+          List<LatLng> points = [];
+          for (var coord in coordinates) {
+            if (coord is List && coord.length >= 2) {
+              double lng = coord[0].toDouble();
+              double lat = coord[1].toDouble();
+              points.add(LatLng(lat, lng));
+            }
+          }
+
+          if (points.isNotEmpty) {
+            Color polygonColor = _getEscalatedColor(severity, widget.severity);
+            polygons.add(Polygon(
+              polygonId: PolygonId(properties['id'].toString()),
+              points: points,
+              fillColor: polygonColor.withOpacity(0.3),
+              strokeColor: polygonColor.withOpacity(0.6), // Faded outline
+              strokeWidth: 2,
+              consumeTapEvents: true,
+              onTap: () {
+                debugPrint(
+                    'Tapped flood area: $severity - ${properties['area']}');
+              },
+            ));
+          }
+        }
+      } catch (e) {
+        debugPrint('Error parsing feature: $e');
+      }
+    }
+
+    setState(() {
+      _polygons = polygons;
+    });
+
+    debugPrint('Created ${polygons.length} polygons');
+
+    // Fit polygons in view
+    if (_polygons.isNotEmpty && mapController != null) {
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _fitPolygonsInView();
+      });
+    }
+  }
+
+  Color _getEscalatedColor(String areaSeverity, String currentPrediction) {
+    int escalationLevel = _getEscalationLevel(areaSeverity, currentPrediction);
+
+    switch (escalationLevel) {
+      case 3: // Most urgent - Act now
+        return Colors.red.shade700;
+      case 2: // Medium urgency - Prepare
+        return Colors.orange.shade700;
+      case 1: // Lower urgency - Monitor
+        return Colors.yellow.shade500;
+      default: // Not relevant to current conditions
+        return Colors.grey.shade300;
+    }
+  }
+
+  int _getEscalationLevel(String areaSeverity, String currentPrediction) {
+    if (currentPrediction.toLowerCase() == 'high') {
+      // When prediction is HIGH: show all areas with escalating urgency
+      switch (areaSeverity.toLowerCase()) {
+        case 'high':
+          return 1; // yellow - Most urgent
+        case 'moderate':
+          return 2; // Orange - Prepare
+        case 'low':
+          return 3; // red - Monitor
+      }
+    } else if (currentPrediction.toLowerCase() == 'moderate') {
+      // When prediction is MODERATE: show moderate and low areas
+      switch (areaSeverity.toLowerCase()) {
+        case 'moderate':
+          return 1; // yellow - Prepare
+        case 'low':
+          return 2; // orange - Monitor
+        case 'high':
+          return 0; // Grey - Shouldn't show (filtered by backend)
+      }
+    } else if (currentPrediction.toLowerCase() == 'low') {
+      // When prediction is LOW: show only low areas
+      return areaSeverity.toLowerCase() == 'low' ? 1 : 0;
+    }
+    return 0;
+  }
+
+  void _fitPolygonsInView() {
+    if (_polygons.isEmpty || mapController == null) return;
+
+    double? minLat, maxLat, minLng, maxLng;
+
+    for (Polygon polygon in _polygons) {
+      for (LatLng point in polygon.points) {
+        if (minLat == null || point.latitude < minLat) minLat = point.latitude;
+        if (maxLat == null || point.latitude > maxLat) maxLat = point.latitude;
+        if (minLng == null || point.longitude < minLng)
+          minLng = point.longitude;
+        if (maxLng == null || point.longitude > maxLng)
+          maxLng = point.longitude;
+      }
+    }
+
+    if (minLat != null && maxLat != null && minLng != null && maxLng != null) {
+      double latPadding = (maxLat - minLat) * 0.1;
+      double lngPadding = (maxLng - minLng) * 0.1;
+
+      mapController!.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(minLat - latPadding, minLng - lngPadding),
+            northeast: LatLng(maxLat + latPadding, maxLng + lngPadding),
+          ),
+          100.0,
+        ),
+      );
+    }
+  }
+
   Future<void> _floodProneAreaMarkers() async {
     // Keep track of used coordinates to offset duplicates
     Map<String, int> coordinateCount = {};
@@ -459,22 +606,15 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
           offsetLng += offsetDistance * math.sin(angle);
         }
 
+        Color circleColor =
+            _getEscalatedColor(proneArea['severity'], widget.severity);
         _circles.add(Circle(
           circleId: CircleId('flood_prone_area_${proneArea['id']}'),
           center: LatLng(offsetLat, offsetLng),
           radius: 100, // radius in meters
-          fillColor: (proneArea['severity'] == 'high'
-                  ? Colors.red
-                  : proneArea['severity'] == 'moderate'
-                      ? Colors.orange
-                      : Colors.yellow)
-              .withOpacity(0.3),
-          strokeColor: proneArea['severity'] == 'high'
-              ? Colors.red
-              : proneArea['severity'] == 'moderate'
-                  ? Colors.orange
-                  : Colors.yellow,
-          strokeWidth: 0,
+          fillColor: circleColor.withOpacity(0.3),
+          strokeColor: circleColor,
+          strokeWidth: 2,
           consumeTapEvents: true,
           onTap: () {
             // Handle tap
@@ -571,6 +711,7 @@ class _FlooedAreasScreenState extends State<FlooedAreasScreen> {
             ),
             markers: _markers,
             circles: _circles,
+            polygons: _polygons, // Display flood prone area polygons
             polylines: _polylines, // Added polylines to the map
             myLocationEnabled: true,
             myLocationButtonEnabled: true,

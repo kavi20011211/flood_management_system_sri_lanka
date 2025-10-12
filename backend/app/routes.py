@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services import weather_condition_service, safe_area_service, request_service, flood_prone_area_service, \
-    feedback_service
+    feedback_service, user_service
 
 api = Blueprint('api', __name__)
 
@@ -91,3 +91,14 @@ def handleGetAllFeedBacks():
 @api.route("/add-a-reply", methods=['PUT'])
 def handleAddAReply():
     return feedback_service.addAReply()
+
+
+# User APIs
+@api.route("/signup", methods=['POST'])
+def handleUserRegister():
+    return user_service.createUser()
+
+
+@api.route("/signin", methods=['POST'])
+def handleUserLogin():
+    return user_service.loginUser()

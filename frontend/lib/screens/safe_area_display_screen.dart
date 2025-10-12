@@ -28,7 +28,7 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
   final Set<Marker> _markers = {};
 
   // API base URL - consider moving this to a config file
-  static const String baseUrl = 'http://192.168.8.172:5000';
+  static const String baseUrl = 'http://192.168.1.100:5000';
 
   @override
   void initState() {
@@ -659,7 +659,12 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Safe Areas${location.isNotEmpty ? ' - $location' : ''}'),
+        title: Text(
+          'Safe Areas${location.isNotEmpty ? ' - $location' : ''}',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: Colors.red.shade600,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: isLocationLoading
@@ -668,12 +673,12 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.my_location),
+                : const Icon(Icons.my_location, color: Colors.white),
             onPressed: isLocationLoading ? null : getCurrentLocation,
             tooltip: 'Get Current Location',
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: isLoading ? null : fetchSafeAreaDetails,
             tooltip: 'Refresh Safe Areas',
           ),

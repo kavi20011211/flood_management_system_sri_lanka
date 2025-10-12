@@ -88,6 +88,24 @@ def calculate_resource_demands(capacity):
 
     return demands
 
+def create_supply():
+    try:
+        data = request.get_json()
+        required_values = ['food', 'water', 'medicine', 'blankets', 'shelter_materials']
+        if not all(key in data for key in required_values):
+            return jsonify({'error': 'Missing required fields'}), 400
+
+        food = data['food']
+        water = data['water']
+        medicine = data['medicine']
+        blankets = data['blankets']
+        shelter_materials = data['shelter_materials']
+
+
+    except Exception as e:
+        print(e)
+        return jsonify({'error': 'Server error', 'details': str(e)}), 500
+
 
 def get_default_supply():
     """Get default available supply for resources - ADJUSTED to be more realistic"""

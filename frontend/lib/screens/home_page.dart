@@ -35,7 +35,6 @@ class _HomePageState extends State<HomePage> {
     if (!hasLocation) {
       _showLocationDialog();
     } else {
-      // Only fetch prediction if location exists
       await fetchPrediction();
       await fetchGeneratedText();
     }
@@ -89,7 +88,6 @@ class _HomePageState extends State<HomePage> {
                     location = newLocation;
                   });
                   Navigator.of(context).pop();
-                  // Fetch prediction after saving location
                   await fetchPrediction();
                 }
               },
@@ -100,7 +98,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  //Fetch severity
   Future<void> fetchPrediction() async {
     setState(() {
       isLoading = true;
@@ -118,9 +115,8 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // Build the URL with query parameters
     final url = Uri.parse(
-        'http://192.168.8.172:5000/get-risk-prediction?area=$currentLocation');
+        'http://192.168.1.100:5000/get-risk-prediction?area=$currentLocation');
 
     try {
       final response = await http.get(url);
@@ -134,16 +130,6 @@ class _HomePageState extends State<HomePage> {
           weatherFeatures = data['features_used'];
           isLoading = false;
         });
-
-        print("Date: ${data['date']}");
-        print("Area: ${data['area']}");
-        print("Risk Prediction: ${data['risk_prediction']}");
-
-        final features = data['features_used'];
-        print("Rainfall: ${features['rainfall']}");
-        print("River Level: ${features['river_level']}");
-        print("Soil Moisture: ${features['soil_moisture']}");
-        print("Elevation: ${features['elevation']}");
       } else {
         setState(() {
           error = 'Failed to fetch data: ${response.statusCode}';
@@ -175,7 +161,6 @@ class _HomePageState extends State<HomePage> {
       return "";
     }
 
-    // Check if weatherFeatures is available
     if (weatherFeatures == null) {
       setState(() {
         error = 'Weather data not available. Please fetch weather data first.';
@@ -184,7 +169,7 @@ class _HomePageState extends State<HomePage> {
       return "";
     }
 
-    final url = Uri.parse('http://192.168.8.172:5000/generate-risk-summary');
+    final url = Uri.parse('http://192.168.1.100:5000/generate-risk-summary');
 
     try {
       final response = await http.post(
@@ -194,8 +179,8 @@ class _HomePageState extends State<HomePage> {
         },
         body: json.encode({
           "area": currentLocation,
-          "latitude": "6.92", // Corrected order: latitude first
-          "longitude": "79.98", // Then longitude
+          "latitude": "6.92",
+          "longitude": "79.98",
           "river_level": weatherFeatures!['river_level'],
           "severity": riskLevel,
           "elevation": weatherFeatures!['elevation']
@@ -211,10 +196,8 @@ class _HomePageState extends State<HomePage> {
           isLoading = false;
         });
 
-        print("Generated summary: $summary");
         return summary;
       } else {
-        debugPrint("Failed to generate text");
         setState(() {
           error =
               'Failed to generate text: ${response.statusCode} - ${response.body}';
@@ -223,7 +206,6 @@ class _HomePageState extends State<HomePage> {
         return "";
       }
     } catch (e) {
-      debugPrint("Failed to generate text ${e}");
       setState(() {
         error = 'Error fetching generated text: $e';
         isLoading = false;
@@ -234,250 +216,501 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height;
     final width = MediaQuery.sizeOf(context).width;
-    final String formattedDate =
-        DateFormat('yyyy-MM-dd – kk:mm:ss').format(DateTime.now());
 
-    // final String generatedText = _generateRiskMessage();
-
-    Color riskColor;
-    Icon riskIcon;
-    String riskMessage;
-
-    switch (riskLevel.toLowerCase()) {
-      case 'low':
-        riskColor = Colors.green.shade700;
-        riskIcon = const Icon(Icons.check, color: Colors.white);
-        riskMessage = "Your area is safe";
-        break;
-      case 'moderate':
-        riskColor = Colors.amber;
-        riskIcon = const Icon(Icons.warning, color: Colors.white);
-        riskMessage = "Your area can be dangerous";
-        break;
-      case 'high':
-        riskColor = Colors.red.shade900;
-        riskIcon = const Icon(Icons.dangerous, color: Colors.white);
-        riskMessage = "Your area is not safe, please follow the guidelines";
-        break;
-      default:
-        riskColor = Colors.grey.shade600;
-        riskIcon = const Icon(Icons.help, color: Colors.white);
-        riskMessage = "Unable to determine risk level";
-        break;
-    }
-
-    return SingleChildScrollView(
-      child: Container(
-        height: height,
-        width: width,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Header
-            Container(
-              height: 80,
-              width: width,
-              color: Colors.amber.shade200,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.all(10.0),
-                    child: Text(
-                      "Hello User!",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Row(
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      body: SafeArea(
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : error != null
+                ? _buildErrorView()
+                : SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.location_pin, color: Colors.red),
-                        SizedBox(width: 4),
-                        Text(
-                          location.isNotEmpty ? location : "Unknown",
-                          style: TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  )
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Loading or Error State
-            if (isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20.0),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (error != null)
-              Container(
-                width: width,
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.shade300),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.error, color: Colors.red, size: 40),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Error: $error",
-                      style: TextStyle(color: Colors.red.shade700),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      onPressed: fetchPrediction,
-                      child: const Text("Retry"),
-                    ),
-                  ],
-                ),
-              )
-            else ...[
-              // Date Info
-              Padding(
-                padding: const EdgeInsets.only(left: 12, bottom: 10),
-                child: Text(
-                  "Flood risk update for today: $formattedDate",
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w800, fontSize: 18),
-                ),
-              ),
-
-              // Risk Level Banner
-              if (riskLevel.isNotEmpty)
-                Container(
-                  width: width,
-                  color: riskColor,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                  child: Row(
-                    children: [
-                      riskIcon,
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          riskMessage,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              const SizedBox(height: 20),
-
-              // Generated Info + Button if High Risk
-              if (generatedText.isNotEmpty)
-                Container(
-                  width: width,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        generatedText,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          height: 1.5,
-                        ),
-                      ),
-                      if (riskLevel.toLowerCase() == 'high') ...[
+                        _buildHeader(),
                         const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      const SafeAreaDisplayScreen()),
-                            );
-                          },
-                          icon: const Icon(Icons.place),
-                          label: const Text("Please find the safe zones here"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                        if (generatedText.isNotEmpty) _buildAlertCard(),
+                        const SizedBox(height: 16),
+                        _buildRiskLevelCard(),
+                        const SizedBox(height: 24),
+                        _buildPopularServices(),
+                        const SizedBox(height: 20),
                       ],
+                    ),
+                  ),
+      ),
+    );
+  }
 
-                      SizedBox(
-                        height: 8,
-                      ),
-
-                      // Flood prone areas button
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => FlooedAreasScreen(
-                                      severity:
-                                          '${riskLevel.toLowerCase().toString()}',
-                                    )),
-                          );
-                        },
-                        icon: const Icon(Icons.place),
-                        label: const Text(
-                            "Please find the flooded prone areas here"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ],
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // const Column(
+          //   crossAxisAlignment: CrossAxisAlignment.start,
+          //   children: [
+          //     Text(
+          //       "Hello User!",
+          //       style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          //     ),
+          //     SizedBox(height: 4),
+          //     Text(
+          //       "Stay safe and informed",
+          //       style: TextStyle(
+          //         fontSize: 14,
+          //         color: Colors.grey,
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_pin, color: Colors.red, size: 18),
+                const SizedBox(width: 4),
+                Text(
+                  location.isNotEmpty ? location : "Unknown",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // Refresh Button
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Center(
-                  child: ElevatedButton.icon(
-                    onPressed: fetchPrediction,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text("Refresh Data"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
+  Widget _buildAlertCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.red.shade600, Colors.red.shade700],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.warning_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  "Weather Alert",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  riskLevel.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            generatedText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FlooedAreasScreen(
+                      severity: riskLevel.toLowerCase().toString(),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.warning_amber_rounded, size: 18),
+              label: const Text(
+                "Find Effected Areas",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.red.shade600,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiskLevelCard() {
+    Color riskColor;
+    IconData riskIcon;
+    String riskMessage;
+    double riskPercentage;
+
+    switch (riskLevel.toLowerCase()) {
+      case 'low':
+        riskColor = Colors.green.shade600;
+        riskIcon = Icons.check_circle;
+        riskMessage = "You are well prepared for an emergency";
+        riskPercentage = 0.35;
+        break;
+      case 'moderate':
+        riskColor = Colors.orange.shade600;
+        riskIcon = Icons.warning_amber_rounded;
+        riskMessage = "You are moderately prepared for an emergency";
+        riskPercentage = 0.60;
+        break;
+      case 'high':
+        riskColor = Colors.red.shade600;
+        riskIcon = Icons.dangerous;
+        riskMessage = "Emergency preparedness needed";
+        riskPercentage = 0.85;
+        break;
+      default:
+        riskColor = Colors.grey.shade600;
+        riskIcon = Icons.help;
+        riskMessage = "Unable to determine risk level";
+        riskPercentage = 0.0;
+        break;
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  riskMessage,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                riskLevel.toUpperCase(),
+                style: TextStyle(
+                  color: riskColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                "Risk Level",
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 13,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                "${(riskPercentage * 100).toInt()}%",
+                style: TextStyle(
+                  color: Colors.grey.shade800,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: riskPercentage,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(riskColor),
+              minHeight: 8,
+            ),
+          ),
+          // if (riskLevel.toLowerCase() == 'high') ...[
+          //   const SizedBox(height: 16),
+          //   SizedBox(
+          //     width: double.infinity,
+          //     child: OutlinedButton.icon(
+          //       onPressed: () {
+          //         Navigator.push(
+          //           context,
+          //           MaterialPageRoute(
+          //             builder: (context) => FlooedAreasScreen(
+          //               severity: riskLevel,
+          //             ),
+          //           ),
+          //         );
+          //       },
+          //       icon: const Icon(Icons.warning_amber_rounded, size: 18),
+          //       label: const Text("Find Effected Zones"),
+          //       style: OutlinedButton.styleFrom(
+          //         foregroundColor: Colors.red.shade600,
+          //         side: BorderSide(color: Colors.red.shade600),
+          //         padding: const EdgeInsets.symmetric(vertical: 12),
+          //         shape: RoundedRectangleBorder(
+          //           borderRadius: BorderRadius.circular(12),
+          //         ),
+          //       ),
+          //     ),
+          //   ),
+          // ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPopularServices() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "POPULAR SERVICES",
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              Icon(Icons.more_horiz, color: Colors.grey.shade400),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildServiceCard(
+                  icon: Icons.home,
+                  label: "Safe\nZones",
+                  color: Colors.red.shade400,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => SafeAreaDisplayScreen()),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildServiceCard(
+                  icon: Icons.local_hospital,
+                  label: "Hospitals\nnearby",
+                  color: Colors.red.shade400,
+                  onTap: () {},
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildServiceCard(
+                  icon: Icons.phone,
+                  label: "Emergency\nnumbers",
+                  color: Colors.red.shade400,
+                  onTap: () {},
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: fetchPrediction,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text("Refresh Data"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.red.shade400, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              "Oops! Something went wrong",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error ?? "Unknown error",
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: fetchPrediction,
+              icon: const Icon(Icons.refresh),
+              label: const Text("Try Again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue.shade600,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ],
         ),
       ),
