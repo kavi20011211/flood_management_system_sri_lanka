@@ -108,7 +108,7 @@ def generateRiskSummary():
         elevation = data['elevation']
 
         # Add your OpenRouter API key here
-        OPENROUTER_API_KEY = "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"
+        OPENROUTER_API_KEY = "your_api_key"
 
         if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "":
             return jsonify({'error': 'OpenRouter API key not configured'}), 500
