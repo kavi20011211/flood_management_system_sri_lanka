@@ -18,6 +18,15 @@ class SafeHouseOptimizer:
         # priority weights (higher = more critical)
         self.priority_weights = {}
 
+        # Resource importance weights (how critical each resource is)
+        self.resource_weights = {
+            'water': 0.35,
+            'food': 0.30,
+            'medicine': 0.20,
+            'shelter_materials': 0.10,
+            'blankets': 0.05
+        }
+
     # --- Safe Houses ---
     @property
     def safe_houses(self):
@@ -74,7 +83,7 @@ class SafeHouseOptimizer:
         self._priority_weights = weights
 
     def solve_optimizer(self):
-        # Create the problem - Changed to MAXIMIZE satisfaction instead of minimize penalty
+        # Create the problem - Maximize weighted satisfaction
         prob = pulp.LpProblem("SafeHouse_Resource_Allocation", pulp.LpMaximize)
 
         # Decision Variables
@@ -101,7 +110,7 @@ class SafeHouseOptimizer:
                     cat='Continuous'
                 )
 
-        # NEW: Overall satisfaction variable for each safe house
+        # Overall satisfaction variable for each safe house (weighted average)
         overall_satisfaction = {}
         for sh in self.safe_houses:
             overall_satisfaction[sh] = pulp.LpVariable(
@@ -135,19 +144,28 @@ class SafeHouseOptimizer:
                 else:
                     prob += x[sh][resource] == 0, f"Zero_Demand_{sh}_{resource}"
 
-        # 3. Overall satisfaction is the minimum of individual resource satisfactions
+        # 3. FIXED: Overall satisfaction is WEIGHTED AVERAGE of individual resource satisfactions
+        # This allows abundant resources to be fully allocated even if one resource is scarce
         for sh in self.safe_houses:
-            for resource in self.resources:
-                prob += overall_satisfaction[sh] <= satisfaction[sh][resource], f"Min_Satisfaction_{sh}_{resource}"
+            prob += overall_satisfaction[sh] == pulp.lpSum([
+                satisfaction[sh][resource] * self.resource_weights.get(resource, 1.0 / len(self.resources))
+                for resource in self.resources
+            ]), f"Weighted_Satisfaction_{sh}"
 
-        # 4. Minimum allocation constraints (ensure each safe house gets at least 30% of needs)
+        # 4. Minimum allocation constraints (ensure each safe house gets at least 30% weighted satisfaction)
         for sh in self.safe_houses:
             prob += overall_satisfaction[sh] >= 0.3, f"Min_Overall_{sh}"
 
-        # 5. Fair distribution: Higher priority houses can get up to 100%, lower priority at least 50%
+        # 5. Fair distribution: Higher priority houses should get better overall satisfaction
         for sh in self.safe_houses:
             min_satisfaction = max(0.5, 0.3 + (self.priority_weights[sh] - 1) * 0.1)
             prob += overall_satisfaction[sh] >= min_satisfaction, f"Fair_Distribution_{sh}"
+
+        # 6. Critical resources minimum threshold - ensure at least 50% of water/food for all
+        for sh in self.safe_houses:
+            for resource in ['water', 'food']:
+                if resource in self.resources:
+                    prob += satisfaction[sh][resource] >= 0.5, f"Critical_Min_{sh}_{resource}"
 
         # Solve the problem
         prob.solve(pulp.PULP_CBC_CMD(msg=0))
@@ -205,7 +223,13 @@ class SafeHouseOptimizer:
             overall_sat = overall_satisfaction[sh].value() if overall_satisfaction[sh].value() else 0
             results['satisfaction_rates'][sh] = {
                 'satisfaction_percentage': round(overall_sat * 100, 1),
-                'priority': self.priority_weights[sh]
+                'priority': self.priority_weights[sh],
+                'resource_breakdown': {}
             }
+
+            # Add individual resource satisfaction for transparency
+            for resource in self.resources:
+                sat_val = satisfaction[sh][resource].value() if satisfaction[sh][resource].value() else 0
+                results['satisfaction_rates'][sh]['resource_breakdown'][resource] = round(sat_val * 100, 1)
 
         return results

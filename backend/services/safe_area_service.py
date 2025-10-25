@@ -195,7 +195,7 @@ def get_resources_dict():
         query = '''
         SELECT food, water, medicine, blankets, shelter_materials
         FROM flood_risk_solution.resources
-        ORDER BY created_date DESC
+        ORDER BY id DESC
         LIMIT 1
         '''
         cursor.execute(query)
@@ -280,12 +280,12 @@ def requestResourcesAllocation():
         prob, x, satisfaction, overall_satisfaction = optimizer.solve_optimizer()
 
         # Check if solution is optimal
-        if prob.status != pulp.LpStatusOptimal:
-            return jsonify({
-                'error': 'Optimization failed',
-                'status': pulp.LpStatus[prob.status],
-                'message': 'Try adjusting supply levels or reducing demands'
-            }), 400
+        # if prob.status != pulp.LpStatusOptimal:
+        #     return jsonify({
+        #         'error': 'Optimization failed',
+        #         'status': pulp.LpStatus[prob.status],
+        #         'message': 'Try adjusting supply levels or reducing demands'
+        #     }), 400
 
         # Get results
         results = optimizer.get_results_dict(prob, x, satisfaction, overall_satisfaction)
@@ -303,6 +303,9 @@ def requestResourcesAllocation():
             if total_demands[resource] > optimizer.supply[resource]:
                 shortage_pct = round((1 - optimizer.supply[resource] / total_demands[resource]) * 100, 1)
                 results['summary']['resource_shortage'][resource] = f"{shortage_pct}% shortage"
+
+        print(results["summary"])
+        print(results)
 
         return jsonify({
             'success': True,

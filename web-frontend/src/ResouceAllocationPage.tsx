@@ -224,7 +224,7 @@ const ResourceAllocationDashboard: React.FC = () => {
           error instanceof Error ? error.message : "Unknown error occurred";
         setError(errorMessage);
         // Fallback to sample data if API call fails
-        setData(sampleData.data);
+        // setData(sampleData.data);
       } finally {
         setLoading(false);
       }
@@ -757,14 +757,14 @@ const ResourceAllocationDashboard: React.FC = () => {
                             className={`px-3 py-1 rounded-full text-xs font-bold ${
                               info.satisfaction_percentage >= 100
                                 ? "bg-green-100 text-green-800"
-                                : info.satisfaction_percentage >= 80
+                                : info.satisfaction_percentage >= 75
                                 ? "bg-yellow-100 text-yellow-800"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
                             {info.satisfaction_percentage >= 100
                               ? "Satisfied"
-                              : info.satisfaction_percentage >= 80
+                              : info.satisfaction_percentage >= 75
                               ? "Moderate"
                               : "Needs Attention"}
                           </span>
