@@ -144,31 +144,91 @@ class SafeHouseOptimizer:
                 else:
                     prob += x[sh][resource] == 0, f"Zero_Demand_{sh}_{resource}"
 
-        # 3. FIXED: Overall satisfaction is WEIGHTED AVERAGE of individual resource satisfactions
-        # This allows abundant resources to be fully allocated even if one resource is scarce
+        # 3. Overall satisfaction is WEIGHTED AVERAGE of individual resource satisfactions
         for sh in self.safe_houses:
             prob += overall_satisfaction[sh] == pulp.lpSum([
                 satisfaction[sh][resource] * self.resource_weights.get(resource, 1.0 / len(self.resources))
                 for resource in self.resources
             ]), f"Weighted_Satisfaction_{sh}"
 
-        # 4. Minimum allocation constraints (ensure each safe house gets at least 30% weighted satisfaction)
-        for sh in self.safe_houses:
-            prob += overall_satisfaction[sh] >= 0.3, f"Min_Overall_{sh}"
+        # 4. Minimum allocation constraints - adaptive to available supply
+        # Calculate what's actually achievable per resource
+        min_achievable = {}
+        for resource in self.resources:
+            total_demand = sum([self.demands[sh][resource] for sh in self.safe_houses])
+            if total_demand > 0:
+                min_achievable[resource] = min(1.0, self.supply[resource] / total_demand)
+            else:
+                min_achievable[resource] = 1.0
 
-        # 5. Fair distribution: Higher priority houses should get better overall satisfaction
+        # Set minimum overall satisfaction based on what's actually possible
         for sh in self.safe_houses:
-            min_satisfaction = max(0.5, 0.3 + (self.priority_weights[sh] - 1) * 0.1)
-            prob += overall_satisfaction[sh] >= min_satisfaction, f"Fair_Distribution_{sh}"
+            prob += overall_satisfaction[sh] >= 0.20, f"Min_Overall_{sh}"
 
-        # 6. Critical resources minimum threshold - ensure at least 50% of water/food for all
+        # 5. FIXED: Equal priority = Equal satisfaction
+        # Group safe houses by priority level
+        priority_groups = {}
+        for sh in self.safe_houses:
+            priority = self.priority_weights[sh]
+            if priority not in priority_groups:
+                priority_groups[priority] = []
+            priority_groups[priority].append(sh)
+
+        # Ensure all safe houses in the same priority group get equal satisfaction
+        for priority, houses in priority_groups.items():
+            if len(houses) > 1:
+                # Set all houses in this priority group to have equal overall satisfaction
+                reference_house = houses[0]
+                for sh in houses[1:]:
+                    prob += overall_satisfaction[sh] == overall_satisfaction[reference_house], \
+                            f"Equal_Priority_{priority}_{sh}_eq_{reference_house}"
+
+        # 6. Priority ordering: Higher priority should get better satisfaction
+        sorted_priorities = sorted(priority_groups.keys(), reverse=True)
+        for i in range(len(sorted_priorities) - 1):
+            high_priority = sorted_priorities[i]
+            low_priority = sorted_priorities[i + 1]
+
+            # Use representatives from each group
+            high_rep = priority_groups[high_priority][0]
+            low_rep = priority_groups[low_priority][0]
+
+            # Higher priority gets at least 5% more satisfaction
+            priority_diff = high_priority - low_priority
+            bonus = min(0.15, priority_diff * 0.05)  # 5% per priority level, cap at 15%
+
+            prob += overall_satisfaction[high_rep] >= \
+                    overall_satisfaction[low_rep] + bonus, \
+                    f"Priority_Order_{high_priority}_over_{low_priority}"
+
+        # 7. ADAPTIVE: Critical resources minimum threshold
+        # Only enforce minimums when supply allows
         for sh in self.safe_houses:
             for resource in ['water', 'food']:
                 if resource in self.resources:
-                    prob += satisfaction[sh][resource] >= 0.5, f"Critical_Min_{sh}_{resource}"
+                    # Use adaptive threshold based on available supply
+                    # For critically scarce resources, lower the threshold
+                    if min_achievable[resource] < 0.5:
+                        # Severe shortage - use proportional minimum
+                        threshold = max(0.15, min_achievable[resource] * 0.6)
+                    else:
+                        # Adequate supply - use higher minimum
+                        threshold = 0.40
+
+                    prob += satisfaction[sh][resource] >= threshold, \
+                            f"Critical_Min_{sh}_{resource}"
+
+        # 8. CRITICAL FIX: Full allocation for abundant resources
+        # If a resource has supply >= total demand, allocate 100% to everyone
+        for resource in self.resources:
+            if min_achievable[resource] >= 1.0:  # Supply meets or exceeds total demand
+                for sh in self.safe_houses:
+                    if self.demands[sh][resource] > 0:
+                        prob += satisfaction[sh][resource] == 1.0, \
+                                f"Full_Allocation_{sh}_{resource}"
 
         # Solve the problem
-        prob.solve(pulp.PULP_CBC_CMD(msg=0))
+        status = prob.solve(pulp.PULP_CBC_CMD(msg=0))
 
         return prob, x, satisfaction, overall_satisfaction
 
