@@ -288,6 +288,19 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
     final TextEditingController peopleCountController = TextEditingController();
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
+    // Quick request options
+    final List<String> quickRequests = [
+      'ORS Kits',
+      'Water',
+      'Mosquito Nets',
+      'Antibiotics',
+      'First Aid Kits',
+      'Saline',
+      'Bandages',
+    ];
+
+    final Set<String> selectedRequests = {};
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -301,6 +314,7 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextFormField(
                         controller: usernameController,
@@ -337,17 +351,59 @@ class _SafeAreaDisplayScreenState extends State<SafeAreaDisplayScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
+                      const Text(
+                        "Quick Requests",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: quickRequests.map((request) {
+                          final isSelected = selectedRequests.contains(request);
+                          return FilterChip(
+                            label: Text(request),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  selectedRequests.add(request);
+                                } else {
+                                  selectedRequests.remove(request);
+                                }
+                                // Update the text field with selected items
+                                requestTypeController.text =
+                                    selectedRequests.join(', ');
+                              });
+                            },
+                            selectedColor:
+                                Theme.of(context).primaryColor.withOpacity(0.2),
+                            checkmarkColor: Theme.of(context).primaryColor,
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
                       TextFormField(
                         controller: requestTypeController,
                         decoration: const InputDecoration(
-                          hintText: "Enter your request type",
+                          hintText:
+                              "Enter custom request or use quick requests above",
                           labelText: "Request Type",
                           border: OutlineInputBorder(),
                         ),
                         maxLines: 3,
+                        onChanged: (value) {
+                          // Clear selected chips if user manually edits
+                          setState(() {
+                            selectedRequests.clear();
+                          });
+                        },
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter your request';
+                            return 'Please enter your request or select quick requests';
                           }
                           return null;
                         },
