@@ -1,6 +1,7 @@
 import {
   BellIcon,
   Home,
+  House,
   Menu,
   MessageSquare,
   Package,
@@ -11,6 +12,7 @@ import ResourceAllocationDashboard from "./ResouceAllocationPage";
 import ResourcePredictionDashboard from "./ResourcePredictionPage";
 import { useState } from "react";
 import RequestManagement from "./RequestManagement";
+import ServiceArea from "./ServiceArea";
 
 const HomePage = () => (
   <div className="p-8">
@@ -84,6 +86,7 @@ export default function App() {
     { id: "allocation", name: "Resource Allocation", icon: Package },
     { id: "prediction", name: "Resource Prediction", icon: TrendingUp },
     { id: "requests", name: "Requests Management", icon: BellIcon },
+    { id: "safesite", name: "Safe Area Create", icon: House },
   ];
 
   const renderCurrentPage = () => {
@@ -98,6 +101,8 @@ export default function App() {
         return <ResourcePredictionDashboard />;
       case "requests":
         return <RequestManagement />;
+      case "safesite":
+        return <ServiceArea />;
       default:
         return <HomePage />;
     }
